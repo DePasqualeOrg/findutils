@@ -125,7 +125,7 @@ impl Ls {
         }
     }
 
-    #[cfg(not(unix))]
+    #[cfg(not(any(unix, target_os = "wasi")))]
     fn print(
         &self,
         file_info: &WalkEntry,
@@ -162,6 +162,60 @@ impl Ls {
         let hard_links = 0;
         let user = 0;
         let group = 0;
+        let last_modified = {
+            let system_time = metadata.modified().unwrap();
+            let now_utc: DateTime<chrono::Utc> = system_time.into();
+            now_utc.format("%b %e %H:%M")
+        };
+        let path = file_info.path().to_string_lossy();
+
+        match writeln!(
+            out,
+            " {:<4} {:>6} {:<10} {:>3} {:<8} {:<8} {:>8} {} {}",
+            inode_number,
+            number_of_blocks,
+            permission,
+            hard_links,
+            user,
+            group,
+            size,
+            last_modified,
+            path,
+        ) {
+            Ok(_) => {}
+            Err(e) => {
+                if print_error_message {
+                    writeln!(
+                        &mut stderr(),
+                        "Error writing {:?} for {}",
+                        file_info.path().to_string_lossy(),
+                        e
+                    )
+                    .unwrap();
+                    matcher_io.set_exit_code(1);
+                } else {
+                    self.stdout_errors.handle(&e, matcher_io);
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "wasi")]
+    fn print(
+        &self,
+        file_info: &WalkEntry,
+        matcher_io: &mut MatcherIO,
+        mut out: impl Write,
+        print_error_message: bool,
+    ) {
+        let metadata = file_info.metadata().unwrap();
+        let inode_number = 0;
+        let number_of_blocks = metadata.len() / 1024 + 1;
+        let permission = "----------";
+        let hard_links = 1;
+        let user = 0;
+        let group = 0;
+        let size = metadata.len();
         let last_modified = {
             let system_time = metadata.modified().unwrap();
             let now_utc: DateTime<chrono::Utc> = system_time.into();
