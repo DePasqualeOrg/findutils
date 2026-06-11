@@ -117,3 +117,7 @@ from_iter_instead_of_collect = "allow"
 large_types_passed_by_value = "allow"
 # Disable for now, we have a few occurrences
 # panic = "warn"
+
+
+[patch.crates-io]
+uucore = { path = "local-deps/uucore" }
